@@ -155,6 +155,18 @@ describe Grape::Validations::ParamsScope do
       expect(last_response.status).to eq(400)
       expect(last_response.body).to eq('foo is empty')
     end
+
+    it do
+      subject.params do
+        optional :fooBar, as: :foo_bar
+        optional :bar
+        at_least_one_of :fooBar, :bar
+      end
+      subject.get('/alias-breaks-future-validations')
+      get '/alias-breaks-future-validations', fooBar: 'foos4life'
+
+      expect(last_response.status).to eq(200)
+    end
   end
 
   context 'array without coerce type explicitly given' do
