@@ -250,6 +250,25 @@ module Grape
         self.class.run_before_each(self)
         run_filters befores, :before
 
+        # Register after_validation callback to mutate aliased params.
+        if route_setting(:aliased_params)
+          # Aliased parameter after_validation block.
+          after_validation_alias_hook = proc do
+            aliases = route_setting(:aliased_params)
+            transformation = proc do |key|
+              key_sym = key.to_sym
+              alias_mapping = aliases.find { |e| e.key? key_sym }
+              alias_mapping.nil? ? key : alias_mapping[key_sym].to_s
+            end
+            params.deep_transform_keys!(&transformation)
+            route_setting(:declared_params).map!(&transformation)
+            route_setting(:saved_declared_params).last.map!(&transformation)
+          end
+
+          # Register the aliased parameter block with the after_validation callback.
+          namespace_stackable(:after_validations, after_validation_alias_hook)
+        end
+
         if (allowed_methods = env[Grape::Env::GRAPE_ALLOWED_METHODS])
           raise Grape::Exceptions::MethodNotAllowed, header.merge('Allow' => allowed_methods) unless options?
           header 'Allow', allowed_methods

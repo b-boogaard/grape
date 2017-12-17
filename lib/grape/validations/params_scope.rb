@@ -118,14 +118,12 @@ module Grape
       def push_declared_params(attrs, **opts)
         if lateral?
           @parent.push_declared_params(attrs)
-        else
-          if opts && opts[:as]
-            @api.route_setting(:aliased_params, @api.route_setting(:aliased_params) || [])
-            @api.route_setting(:aliased_params) << { attrs.first => opts[:as] }
-          end
-
-          @declared_params.concat attrs
+        elsif opts && opts[:as]
+          @api.route_setting(:aliased_params, @api.route_setting(:aliased_params) || [])
+          @api.route_setting(:aliased_params) << { attrs.first => opts[:as] }
         end
+
+        @declared_params.concat attrs
       end
 
       private
@@ -280,6 +278,11 @@ module Grape
         # slice out fail_fast attribute
         opts = {}
         opts[:fail_fast] = validations.delete(:fail_fast) || false
+
+        # We don't want to register aliasing as a validator. If any aliases
+        # are defined in the params an after_validation callback will be registered
+        # in Grape::Endpoint to mutate all aliased parameters.
+        validations.delete(:as) if validations.key?(:as)
 
         # Validate for presence before any other validators
         if validations.key?(:presence) && validations[:presence]
